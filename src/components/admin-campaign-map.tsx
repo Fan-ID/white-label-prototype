@@ -32,6 +32,10 @@ import {
 const ALL_ARTISTS = "__all__"
 const ALL_STATUSES = "__all__"
 
+function usd(n: number) {
+  return `$${n.toFixed(2)}`
+}
+
 export function AdminCampaignMap({
   rows,
   users,
@@ -69,6 +73,46 @@ export function AdminCampaignMap({
     })
   }, [rows, artistId, status, query])
 
+  const spendTotals = useMemo(() => {
+    const soundlink = filtered.reduce((sum, r) => sum + r.soundlinkSpend, 0)
+    const partner = filtered.reduce((sum, r) => sum + r.partnerFee, 0)
+    return { soundlink, partner, grand: soundlink + partner }
+  }, [filtered])
+
+  const spendByArtist = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        partnerUserId: string
+        name: string
+        handle: string
+        soundlinkSpend: number
+        partnerFee: number
+        campaigns: number
+      }
+    >()
+    for (const row of filtered) {
+      const current = map.get(row.partnerUserId)
+      if (current) {
+        current.soundlinkSpend += row.soundlinkSpend
+        current.partnerFee += row.partnerFee
+        current.campaigns += 1
+      } else {
+        map.set(row.partnerUserId, {
+          partnerUserId: row.partnerUserId,
+          name: row.partnerUserName,
+          handle: row.partnerUserHandle,
+          soundlinkSpend: row.soundlinkSpend,
+          partnerFee: row.partnerFee,
+          campaigns: 1,
+        })
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => b.soundlinkSpend + b.partnerFee - (a.soundlinkSpend + a.partnerFee),
+    )
+  }, [filtered])
+
   return (
     <div className="space-y-6">
       <div>
@@ -80,6 +124,88 @@ export function AdminCampaignMap({
           Local partner DB mapping (all artists). Not filtered by session.
         </p>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Soundlink (filtered)</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {usd(spendTotals.soundlink)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>White-label fee (filtered)</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {usd(spendTotals.partner)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total (filtered)</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {usd(spendTotals.grand)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Spend by artist</CardTitle>
+          <CardDescription>
+            Soundlink cycle cost at create · white-label fee reserved (always $0
+            for now)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {spendByArtist.length === 0 ? (
+            <p className="px-6 py-8 text-center text-sm text-muted-foreground">
+              No spend for the current filters.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Artist</TableHead>
+                    <TableHead className="text-right">Campaigns</TableHead>
+                    <TableHead className="text-right">Soundlink</TableHead>
+                    <TableHead className="text-right">White-label</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {spendByArtist.map((row) => (
+                    <TableRow key={row.partnerUserId}>
+                      <TableCell>
+                        <p className="font-medium">{row.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          @{row.handle}
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {row.campaigns}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {usd(row.soundlinkSpend)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {usd(row.partnerFee)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {usd(row.soundlinkSpend + row.partnerFee)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">
@@ -145,6 +271,8 @@ export function AdminCampaignMap({
                     <TableHead className="w-10" />
                     <TableHead>Status</TableHead>
                     <TableHead>Budget</TableHead>
+                    <TableHead className="text-right">Soundlink</TableHead>
+                    <TableHead className="text-right">White-label</TableHead>
                     <TableHead>Genre</TableHead>
                     <TableHead>Mode</TableHead>
                     <TableHead>Created</TableHead>
@@ -207,6 +335,12 @@ export function AdminCampaignMap({
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">
                         ${row.dailyBudget}/d × {row.durationDays}d
+                      </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">
+                        {usd(row.soundlinkSpend)}
+                      </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                        {usd(row.partnerFee)}
                       </TableCell>
                       <TableCell className="text-sm">{row.genre}</TableCell>
                       <TableCell>

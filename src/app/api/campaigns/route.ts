@@ -127,6 +127,8 @@ export async function POST(request: Request) {
       body.creativeDirection?.type === "full_control"
         ? "full_control"
         : "do_it_for_me";
+    const soundlinkSpend = cycleCostUsd(dailyBudget, durationDays);
+    const partnerFee = 0;
 
     try {
       await insertCampaignMap({
@@ -142,6 +144,8 @@ export async function POST(request: Request) {
         idempotencyKey,
         status,
         campaignUrl,
+        soundlinkSpend,
+        partnerFee,
       });
     } catch (dbError) {
       return NextResponse.json(
@@ -152,7 +156,7 @@ export async function POST(request: Request) {
           campaignName,
           campaignUrl,
           status,
-          cycleCostUsd: cycleCostUsd(dailyBudget, durationDays),
+          cycleCostUsd: soundlinkSpend,
           api: result,
           dbError:
             dbError instanceof Error ? dbError.message : "Unknown DB error",
@@ -165,7 +169,9 @@ export async function POST(request: Request) {
       ok: true,
       campaignId,
       campaignName,
-      cycleCostUsd: cycleCostUsd(dailyBudget, durationDays),
+      cycleCostUsd: soundlinkSpend,
+      soundlinkSpend,
+      partnerFee,
       api: result,
     });
   } catch (error) {

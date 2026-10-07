@@ -82,6 +82,8 @@ export async function ensureDb(): Promise<Client> {
         idempotency_key TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'creating',
         campaign_url TEXT,
+        soundlink_spend REAL NOT NULL DEFAULT 0,
+        partner_fee REAL NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         FOREIGN KEY (partner_user_id) REFERENCES partner_users(id)
       )`,
@@ -141,6 +143,20 @@ async function ensureCampaignMapColumns(db: Client): Promise<void> {
   if (!cols.has("campaign_url")) {
     await db.execute("ALTER TABLE campaign_map ADD COLUMN campaign_url TEXT");
   }
+  if (!cols.has("soundlink_spend")) {
+    await db.execute(
+      "ALTER TABLE campaign_map ADD COLUMN soundlink_spend REAL NOT NULL DEFAULT 0",
+    );
+    // Backfill cycle cost for rows created before this column existed.
+    await db.execute(
+      "UPDATE campaign_map SET soundlink_spend = ROUND(daily_budget * duration_days, 2)",
+    );
+  }
+  if (!cols.has("partner_fee")) {
+    await db.execute(
+      "ALTER TABLE campaign_map ADD COLUMN partner_fee REAL NOT NULL DEFAULT 0",
+    );
+  }
 }
 
 export type PartnerUser = {
@@ -164,6 +180,8 @@ export type CampaignMapRow = {
   idempotencyKey: string;
   status: string;
   campaignUrl: string | null;
+  soundlinkSpend: number;
+  partnerFee: number;
   createdAt: string;
 };
 
@@ -216,7 +234,8 @@ export async function listCampaignsForUser(
   const result = await db.execute({
     sql: `SELECT campaign_id, partner_user_id, campaign_name, spotify_url,
                  daily_budget, duration_days, genre, strategy_type, creative_mode,
-                 idempotency_key, status, campaign_url, created_at
+                 idempotency_key, status, campaign_url, soundlink_spend, partner_fee,
+                 created_at
           FROM campaign_map
           WHERE partner_user_id = ?
           ORDER BY created_at DESC`,
@@ -235,7 +254,8 @@ export async function listAllCampaignMaps(): Promise<CampaignMapAdminRow[]> {
   const result = await db.execute(
     `SELECT c.campaign_id, c.partner_user_id, c.campaign_name, c.spotify_url,
             c.daily_budget, c.duration_days, c.genre, c.strategy_type, c.creative_mode,
-            c.idempotency_key, c.status, c.campaign_url, c.created_at,
+            c.idempotency_key, c.status, c.campaign_url, c.soundlink_spend, c.partner_fee,
+            c.created_at,
             u.name AS partner_user_name, u.handle AS partner_user_handle
      FROM campaign_map c
      JOIN partner_users u ON u.id = c.partner_user_id
@@ -265,8 +285,9 @@ export async function insertCampaignMap(
     sql: `INSERT INTO campaign_map (
             campaign_id, partner_user_id, campaign_name, spotify_url,
             daily_budget, duration_days, genre, strategy_type, creative_mode,
-            idempotency_key, status, campaign_url, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            idempotency_key, status, campaign_url, soundlink_spend, partner_fee,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       row.campaignId,
       row.partnerUserId,
@@ -280,6 +301,8 @@ export async function insertCampaignMap(
       row.idempotencyKey,
       row.status,
       row.campaignUrl,
+      row.soundlinkSpend,
+      row.partnerFee,
       row.createdAt ?? new Date().toISOString(),
     ],
   });
@@ -320,7 +343,8 @@ export async function getCampaignMap(
   const result = await db.execute({
     sql: `SELECT campaign_id, partner_user_id, campaign_name, spotify_url,
                  daily_budget, duration_days, genre, strategy_type, creative_mode,
-                 idempotency_key, status, campaign_url, created_at
+                 idempotency_key, status, campaign_url, soundlink_spend, partner_fee,
+                 created_at
           FROM campaign_map WHERE campaign_id = ?`,
     args: [campaignId],
   });
@@ -457,6 +481,8 @@ function mapCampaignRow(row: Record<string, unknown>): CampaignMapRow {
     idempotencyKey: String(row.idempotency_key),
     status: String(row.status),
     campaignUrl: row.campaign_url ? String(row.campaign_url) : null,
+    soundlinkSpend: Number(row.soundlink_spend ?? 0),
+    partnerFee: Number(row.partner_fee ?? 0),
     createdAt: String(row.created_at),
   };
 }
