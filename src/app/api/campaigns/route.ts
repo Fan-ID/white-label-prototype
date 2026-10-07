@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { isAdminUser } from "@/lib/config";
 import { getSessionUser, requireSessionUser } from "@/lib/session";
 import { insertCampaignMap, listCampaignsForUser } from "@/lib/db";
 import { cycleCostUsd } from "@/lib/money";
@@ -41,6 +42,12 @@ type CreateBody = {
 export async function POST(request: Request) {
   try {
     const user = await requireSessionUser();
+    if (isAdminUser(user.id)) {
+      return NextResponse.json(
+        { error: "Admin persona cannot create campaigns" },
+        { status: 403 },
+      );
+    }
     const body = (await request.json()) as CreateBody;
 
     const spotifyUrl = body.spotifyUrl?.trim();

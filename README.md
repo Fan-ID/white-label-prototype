@@ -355,8 +355,25 @@ public/
 
 ---
 
+## Public API gaps for partners
+
+This prototype only uses the Public API. Gaps that matter for a real white-label (wallet balance, auto-renew control, Spotify lookup/validation, webhooks, external reference, etc.) are tracked in **[PARTNER_GAPS.md](./PARTNER_GAPS.md)**.
+
+Highlights:
+
+| Gap | Why it hurts a partner |
+| --- | --- |
+| Wallet campaigns **auto-renew on by default**; no Public API toggle | Spend has no ceiling after the first cycle |
+| No **`GET /v1/wallet`** | Partner only learns about low balance via `402` on create |
+| No **Spotify lookup / pre-validation** | Partner cannot check track/playlist existence, metadata, or eligibility before `POST /v1/campaigns` (product UI can; API-only flow cannot) |
+| No webhooks | Status / renew failures / low balance require polling |
+| No `externalReference` on create | Partner must keep its own `campaign_map` (this app’s Turso tables) |
+
+---
+
 ## References
 
+- [Partner API gaps (PARTNER_GAPS.md)](./PARTNER_GAPS.md) — full P0/P1/P2 list for Groover-style integrations
 - [Soundlink Public API docs](https://docs.getsoundlink.com)
 - [Importing videos](https://docs.getsoundlink.com/importing-videos) — HTTPS MP4/MOV only
 - [Creating campaigns](https://docs.getsoundlink.com/creating-campaigns) — `creativeDirection`, wallet funding

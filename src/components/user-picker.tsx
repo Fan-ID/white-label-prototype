@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Loader2, Music2, Sparkles } from "lucide-react"
+import { isAdminUser } from "@/lib/config"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,7 +27,7 @@ export function UserPicker({ users }: { users: PartnerUser[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       })
-      router.push("/campaigns")
+      router.push(isAdminUser(userId) ? "/admin" : "/campaigns")
       router.refresh()
     } finally {
       setLoadingId(null)
@@ -57,10 +58,11 @@ export function UserPicker({ users }: { users: PartnerUser[] }) {
         <h2 className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
           Who&apos;s launching ads?
         </h2>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {users.map((user) => {
             const isLoading = loadingId === user.id
             const isBlocked = loadingId !== null && !isLoading
+            const admin = isAdminUser(user.id)
 
             return (
               <Card
@@ -69,6 +71,7 @@ export function UserPicker({ users }: { users: PartnerUser[] }) {
                   "group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md",
                   isBlocked && "pointer-events-none opacity-50",
                   isLoading && "ring-2 ring-primary/40",
+                  admin && "border-dashed",
                 )}
               >
                 <CardHeader className="pb-3">
@@ -84,23 +87,28 @@ export function UserPicker({ users }: { users: PartnerUser[] }) {
                       .join("")}
                   </div>
                   <CardTitle className="text-lg">{user.name}</CardTitle>
-                  <CardDescription>@{user.handle}</CardDescription>
+                  <CardDescription>
+                    {admin ? "Staff · campaign map only" : `@${user.handle}`}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Music2 className="size-4 text-primary" />
-                    {user.genre}
+                    {admin ? "No campaign create" : user.genre}
                   </div>
                   <Button
                     onClick={() => selectUser(user.id)}
                     disabled={isLoading}
                     className="w-full"
+                    variant={admin ? "outline" : "default"}
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="size-4 animate-spin" />
                         Entering…
                       </>
+                    ) : admin ? (
+                      "Open admin"
                     ) : (
                       "Continue as artist"
                     )}

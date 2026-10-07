@@ -111,24 +111,21 @@ export async function ensureDb(): Promise<Client> {
     "write",
   );
 
-  const existing = await db.execute("SELECT COUNT(*) AS c FROM partner_users");
-  const count = Number(existing.rows[0]?.c ?? 0);
-  if (count === 0) {
-    const now = new Date().toISOString();
-    for (const user of SEED_USERS) {
-      await db.execute({
-        sql: `INSERT INTO partner_users (id, name, handle, genre, avatar_hue, created_at)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [
-          user.id,
-          user.name,
-          user.handle,
-          user.genre,
-          user.avatarHue,
-          now,
-        ],
-      });
-    }
+  // Upsert seeds so new personas (e.g. Admin) appear on existing DBs.
+  const now = new Date().toISOString();
+  for (const user of SEED_USERS) {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO partner_users (id, name, handle, genre, avatar_hue, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [
+        user.id,
+        user.name,
+        user.handle,
+        user.genre,
+        user.avatarHue,
+        now,
+      ],
+    });
   }
 
   await ensureCampaignMapColumns(db);

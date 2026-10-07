@@ -5,7 +5,7 @@ export const SPEND_GUARD = {
   maxActiveCampaigns: 5,
   minDailyBudgetUsd: 10,
   minDurationDays: 7,
-} as const
+} as const;
 
 export const PUBLIC_API_GENRES = [
   "Alternative/Indie",
@@ -19,9 +19,12 @@ export const PUBLIC_API_GENRES = [
   "Pop",
   "Rock",
   "Christmas",
-] as const
+] as const;
 
-export const SESSION_COOKIE = "groover_partner_user"
+export const SESSION_COOKIE = "groover_partner_user";
+
+/** Partner “staff” persona — Admin nav and /admin only when this user is selected. */
+export const ADMIN_USER_ID = "user_admin";
 
 export const SEED_USERS = [
   {
@@ -45,4 +48,15 @@ export const SEED_USERS = [
     genre: "Latin/Reggaeton",
     avatarHue: 320,
   },
-] as const
+  {
+    id: ADMIN_USER_ID,
+    name: "Groover Admin",
+    handle: "admin",
+    genre: "Pop",
+    avatarHue: 160,
+  },
+] as const;
+
+export function isAdminUser(userId: string | null | undefined): boolean {
+  return userId === ADMIN_USER_ID;
+}

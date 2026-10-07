@@ -1,87 +1,95 @@
-# White-label (Groover): o que falta na Public API para parceiros
+# White-label (Groover): Public API gaps for partners
 
-Investigação feita a partir do protótipo que usa **só a Public API**, com uma única API key de org. Escopo: wallet, cobrança, renovação, eventos e o mapeamento dos usuários do parceiro.
+Investigation based on the prototype that uses **only the Public API**, with a single org API key. Scope: wallet, billing, renewal, events, and partner-user mapping.
 
 ## TL;DR
 
-- **Bloqueante:** toda campanha wallet criada pela Public API nasce com **auto-renew ligado**, e o parceiro não tem como desligar. Por isso o gasto não tem teto: ao fim de cada ciclo o backend debita outro ciclo do wallet da org.
-- **Falta endpoint de saldo.** O parceiro só descobre que o saldo acabou quando recebe um `402 insufficient_credit` ao criar campanha.
-- **Cobrança no cartão ao criar campanha:** hoje não existe, nem na UI do produto. **Não recomendo** fazer isso para white-label: quem cobra o artista é o parceiro, e a Soundlink fatura o parceiro (B2B).
-- O wallet interno já está maduro (ledger, reservas, auto-recharge, cartões). O que falta é **expor isso na Public API**, não construir do zero.
+- **Blocker:** every wallet campaign created via the Public API is born with **auto-renew on**, and the partner has no way to turn it off. Spend has no ceiling: at the end of each cycle the backend debits another cycle from the org wallet.
+- **No balance endpoint.** The partner only learns the wallet is empty when create returns `402 insufficient_credit`.
+- **No Spotify lookup.** The partner cannot validate track/playlist (existence, metadata, eligibility) before create — they only find out on `POST /v1/campaigns` (after the end-customer flow may already have progressed).
+- **Charge card on campaign create:** does not exist today, not even in the product UI. **Not recommended** for white-label: the partner bills the artist; Soundlink bills the partner (B2B).
+- The internal wallet is already mature (ledger, reservations, auto-recharge, cards). The gap is **exposing it on the Public API**, not building it from scratch.
 
-## O que já existe na Public API
+## What already exists on the Public API
 
-| Capacidade            | Detalhe                                                                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Criar campanha wallet | Reserva `dailyBudget × durationDays` adiantado. Saldo insuficiente → `402 insufficient_credit` com `details: { available, required }` |
-| Aumentar budget       | Debita do wallet e devolve `walletBalance` (único lugar onde o saldo aparece na API)                                                  |
-| Diminuir budget       | Reembolso assíncrono para o wallet (mínimo $10/dia, mais de 3 dias restantes)                                                         |
-| Stop                  | Reembolsa o que não foi gasto para o wallet. É terminal: não há restart                                                               |
-| Métricas              | `spend_media`, `spend_total`, `fees`, CPL/CPF, breakdown e export diário                                                              |
-| Idempotency           | Obrigatório em create/stop/budget; TTL 24h; `409` se o mesmo key vier com body diferente                                              |
-| Rate limit            | 60/min e 600/hora por key; import de vídeo 20/hora                                                                                    |
+| Capability             | Detail                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Create wallet campaign | Reserves `dailyBudget × durationDays` upfront. Insufficient balance → `402 insufficient_credit` with `details: { available, required }` |
+| Increase budget        | Debits the wallet and returns `walletBalance` (only place balance appears in the API)                                                   |
+| Decrease budget        | Async refund to the wallet (min $10/day, more than 3 days remaining)                                                                    |
+| Stop                   | Refunds unspent amount to the wallet. Terminal: no restart                                                                              |
+| Metrics                | `spend_media`, `spend_total`, `fees`, CPL/CPF, breakdown and daily export                                                               |
+| Idempotency            | Required on create/stop/budget; 24h TTL; `409` if the same key is reused with a different body                                          |
+| Rate limit             | 60/min and 600/hour per key; video import 20/hour                                                                                       |
 
 ## Gaps
 
-### P0: antes de liberar para o parceiro
+### P0: before shipping to the partner
 
-1. **Controle de auto-renew**
-   - Hoje: `campaigns.repository.ts` grava `auto_renew_enabled: true` para toda campanha wallet. O toggle existe (`PUT /api/v1/campaigns/:id/wallet/auto-renew`), mas só com token Firebase.
-   - Impacto: o limite de gasto por usuário do parceiro (ex.: $10/dia × 7 dias = $70) não vale. A renovação pode ainda sair **mais cara** que a criação, porque inclui as Ad fees.
-   - Proposta: campo `autoRenew: boolean` no `POST /v1/campaigns` (default `false` para parceiro, ou configurável por org) e/ou `PUT /v1/campaigns/{id}/auto-renew`.
+1. **Auto-renew control**
+   - Today: `campaigns.repository.ts` sets `auto_renew_enabled: true` for every wallet campaign. The toggle exists (`PUT /api/v1/campaigns/:id/wallet/auto-renew`) but only with a Firebase token.
+   - Impact: the partner’s per-user spend cap (e.g. $10/day × 7 days = $70) does not hold. Renewal can also cost **more** than create because it includes Ad fees.
+   - Proposal: `autoRenew: boolean` on `POST /v1/campaigns` (default `false` for partners, or org-configurable) and/or `PUT /v1/campaigns/{id}/auto-renew`.
 
-2. **Enum `CampaignStatus` desatualizado no OpenAPI**
-   - O OpenAPI documenta `creating|active|paused|stopped|completed|failed|ended`, mas o backend devolve o status interno como vem, incluindo `renewing`, `renew_failed` e `inactive`.
-   - Proposta: documentar o enum real e o ciclo de vida (quais status são terminais, quais permitem stop).
+2. **`CampaignStatus` enum out of date in OpenAPI**
+   - OpenAPI documents `creating|active|paused|stopped|completed|failed|ended`, but the backend returns the internal status as-is, including `renewing`, `renew_failed`, and `inactive`.
+   - Proposal: document the real enum and lifecycle (which statuses are terminal, which allow stop).
 
 3. **`GET /v1/wallet`**
-   - Hoje: não existe. O endpoint interno `GET /organizations/:id/credits` devolve só `{ balance, updatedAt }`, sem descontar as reservas ativas, então expor ele como está daria um número enganoso.
-   - Proposta: `{ balance, available, reserved, currency: "USD", updatedAt }`, com scope `wallet:read`. Dá para reaproveitar `CreditService.getAvailableBalance` (o agent já faz isso em `WalletToolsService.getWalletBalance`).
+   - Today: does not exist. The internal endpoint `GET /organizations/:id/credits` returns only `{ balance, updatedAt }` without subtracting active reservations, so exposing it as-is would be misleading.
+   - Proposal: `{ balance, available, reserved, currency: "USD", updatedAt }`, with scope `wallet:read`. Reuse `CreditService.getAvailableBalance` (the agent already does this in `WalletToolsService.getWalletBalance`).
 
-4. **Gate `wallet_not_enabled`**
-   - `PublicApiWalletNotEnabledError` está definido e documentado, mas **nunca é lançado**. Uma org sem wallet habilitado não é bloqueada no create.
+4. **`wallet_not_enabled` gate**
+   - `PublicApiWalletNotEnabledError` is defined and documented, but **never thrown**. An org without wallet enabled is not blocked on create.
 
-### P1: para operar em escala
+### P1: to operate at scale
 
-5. **Referência externa no create**
-   - Hoje: só existe `campaignName`, que vira nome do smartlink e **não volta** no `GET /v1/campaigns`. O parceiro precisa manter a própria tabela de mapeamento `campaignId → usuário`.
-   - Proposta: `externalReference` (string) ou `metadata` (objeto pequeno), devolvido no GET e filtrável.
+5. **Spotify lookup / validation before create**
+   - Today: there is **no** endpoint like `GET /v1/spotify/lookup` (or equivalent) on the Public API. OpenAPI only mentions an internal lookup when creating a soundlink (“resource must currently exist on Spotify”).
+   - Impact: the partner **cannot validate** URL, type (track vs playlist), Spotify existence, name/artwork/artist, or eligibility rules **before** charging the customer or calling `POST /v1/campaigns`. Poor UX and late create failures (and, if the partner already charged the artist, refunds on their side).
+   - The product UI has this (resolve + preview before submit). The white-label prototype can only paste a URL and hope.
+   - Proposal: `GET /v1/spotify/lookup?url=...` (or `POST` with body) → `{ type, spotifyId, name, artists, imageUrl, eligible, reason? }` plus clear errors (`invalid_spotify_url`, `spotify_not_found`, `not_eligible`). Suggested scope: `campaigns:read` or `spotify:read`.
 
-6. **Filtros na listagem**
-   - Hoje `GET /v1/campaigns` aceita só `page`, `pageSize`, `sortBy` e `sortOrder`.
-   - Proposta: filtrar por `status`, `externalReference` e data de criação.
+6. **External reference on create**
+   - Today: only `campaignName`, which becomes the smartlink name and **does not round-trip** on `GET /v1/campaigns`. The partner must keep its own `campaignId → user` mapping table.
+   - Proposal: `externalReference` (string) or small `metadata` object, returned on GET and filterable.
 
-7. **Webhooks**
-   - Hoje: não existe nenhum. Saldo baixo e falha de renovação geram **email** para o primary user da org; o parceiro só fica sabendo via polling (dentro do limite de 60 req/min).
-   - Eventos mínimos: `campaign.status_changed`, `campaign.renew_failed`, `wallet.low_balance`, `wallet.topup_credited`.
+7. **List filters**
+   - Today `GET /v1/campaigns` accepts only `page`, `pageSize`, `sortBy`, and `sortOrder`.
+   - Proposal: filter by `status`, `externalReference`, and created date.
 
-8. **Histórico do wallet** (`GET /v1/wallet/transactions`)
-   - Para o parceiro conciliar o que cobrou dos artistas com o que a Soundlink debitou. Dá para reaproveitar `listOrgLedger`, desde que o `debug_payload` não seja exposto.
+8. **Webhooks**
+   - Today: none. Low balance and renew failure send **email** to the org primary user; the partner only learns via polling (within the 60 req/min limit).
+   - Minimum events: `campaign.status_changed`, `campaign.renew_failed`, `wallet.low_balance`, `wallet.topup_credited`.
+
+9. **Wallet history** (`GET /v1/wallet/transactions`)
+   - So the partner can reconcile what they charged artists with what Soundlink debited. Reuse `listOrgLedger`, without exposing `debug_payload`.
 
 ### P2
 
-9. Recibos e faturas via API (hoje só pela rota interna `.../credits/topups/:id/invoice`).
-10. Auto-recharge por threshold e top-up via API com o cartão corporativo do parceiro (ver a seção abaixo).
-11. Reiniciar uma campanha `stopped` (hoje a saída é criar outra).
-12. Isolamento de saldo por sub-conta. Hoje todos os usuários do parceiro dividem o mesmo wallet da org, e o limite por usuário fica do lado do parceiro.
+10. Receipts and invoices via API (today only the internal route `.../credits/topups/:id/invoice`).
+11. Threshold auto-recharge and API top-up with the partner’s corporate card (see section below).
+12. Restart a `stopped` campaign (today the path is to create another).
+13. Per-sub-account balance isolation. Today all partner users share the same org wallet; per-user caps stay on the partner side.
 
-## Cobrança no cartão ao criar campanha
+## Charge card on campaign create
 
-**Como funciona hoje:**
+**How it works today:**
 
-- Nenhum caminho cobra cartão na criação, nem na UI. Na UI o botão de criar fica desabilitado até o wallet cobrir o ciclo, e o usuário faz o top-up antes (Stripe Checkout ou cartão salvo, mínimo $50).
-- O auto-recharge existe por org (cartão Primary + teto mensal), mas **só dispara na renovação** e cobra só a diferença que falta. Os campos `threshold_amount` e `recharge_amount` são salvos, mas não são usados na cobrança.
-- Não existe job do tipo "saldo abaixo de X, recarrega".
+- No path charges a card on create, including the UI. Create stays disabled until the wallet covers the cycle; the user tops up first (Stripe Checkout or saved card, min $50).
+- Org-level auto-recharge exists (Primary card + monthly cap), but it **only fires on renewal** and charges only the shortfall. `threshold_amount` and `recharge_amount` are stored but do not drive the charge.
+- There is no “balance below X → top up” job.
 
-**Recomendação para white-label:**
+**Recommendation for white-label:**
 
-- **V0:** fatura + top-up feito pelo CSM (admin-topup), como já decidido.
-- **Fase 2:** auto-recharge por threshold com o cartão corporativo do parceiro (ex.: "se `available` < $500, recarrega $2.000"). Exige que o `threshold_amount` passe a funcionar de verdade e o trigger seja estendido para além da renovação. A cobrança off-session de `wallet-auto-recharge.writer.ts` pode ser reaproveitada.
-- **Não fazer:** cobrar o cartão do artista final pela Soundlink. Isso mistura a cobrança do usuário final com o funding da org e traz chargeback, fraude, reembolso e PCI para dentro da Soundlink.
+- **V0:** invoice + CSM admin-topup, as already decided.
+- **Phase 2:** threshold auto-recharge on the partner’s corporate card (e.g. “if `available` < $500, recharge $2,000”). Requires `threshold_amount` to actually drive charges and the trigger to extend beyond renewal. Off-session charging in `wallet-auto-recharge.writer.ts` can be reused.
+- **Do not:** charge the end artist’s card through Soundlink. That mixes end-user billing with org funding and pulls chargebacks, fraud, refunds, and PCI into Soundlink.
 
-## Riscos para o V0 do Groover se nada mudar
+## Risks for Groover V0 if nothing changes
 
-- Campanhas renovam sozinhas e debitam ciclos que o parceiro não previu.
-- `renew_failed` acontece em silêncio para o parceiro (o email vai para a org).
-- O wallet é compartilhado: um artista pode consumir o saldo dos outros.
-- Sem saldo visível, o parceiro só descobre que o saldo acabou quando o create falha com 402.
+- Campaigns renew on their own and debit cycles the partner did not plan for.
+- `renew_failed` is silent for the partner (email goes to the org).
+- Shared wallet: one artist can consume credit meant for others.
+- Without a visible balance, the partner only learns funds are gone when create fails with 402.
+- Without lookup, an invalid or ineligible URL only surfaces on create — after the customer (and billing) flow has already moved forward.
