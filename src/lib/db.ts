@@ -9,9 +9,10 @@ let client: Client | null = null;
 let migrated = false;
 
 function tursoUrl() {
-  // Docs: TURSO_DATABASE_URL. Connect UI Custom Prefix often injects TURSO_URL
-  // (or STORAGE_URL if the prefix was left as STORAGE).
+  // Prefer APP_TURSO_* so the Vercel Turso integration can keep injecting
+  // per-deploy branch URLs into TURSO_DATABASE_URL without wiping data.
   return (
+    process.env.APP_TURSO_DATABASE_URL?.trim() ||
     process.env.TURSO_DATABASE_URL?.trim() ||
     process.env.TURSO_URL?.trim() ||
     process.env.STORAGE_URL?.trim() ||
@@ -21,6 +22,7 @@ function tursoUrl() {
 
 function tursoAuthToken() {
   return (
+    process.env.APP_TURSO_AUTH_TOKEN?.trim() ||
     process.env.TURSO_AUTH_TOKEN?.trim() ||
     process.env.TURSO_TOKEN?.trim() ||
     process.env.STORAGE_AUTH_TOKEN?.trim() ||
