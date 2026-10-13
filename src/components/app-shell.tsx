@@ -56,7 +56,7 @@ export function AppShell({
           <Link href={homeHref} className="shrink-0">
             <Image
               src="/images/logo.png"
-              alt="Groover"
+              alt="Partner"
               width={140}
               height={48}
               className="h-8 w-auto sm:h-9"
@@ -164,7 +164,7 @@ export function AppShell({
       <footer className="mt-12 border-t border-border/60 pt-6 text-center text-xs text-muted-foreground">
         {admin
           ? "Prototype admin · local campaign_map · Public API org wallet"
-          : "Prototype for Groover × Soundlink white-label · Public API only · Spend guard active ($10/day × 7 days max)"}
+          : "Prototype for partner × Soundlink white-label · Public API only · Spend guard active ($10/day × 7 days max)"}
       </footer>
     </div>
   )

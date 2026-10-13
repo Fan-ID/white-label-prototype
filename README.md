@@ -1,8 +1,8 @@
-# Groover × Soundlink — white-label prototype
+# Partner × Soundlink — white-label prototype
 
 Partner-style Next.js app that creates and manages **Soundlink paid wallet campaigns** using **only the [Soundlink Public API](https://docs.getsoundlink.com)** (no internal Fan-ID APIs).
 
-It simulates a white-label partner (Groover): fake artists on the partner side, a local mapping DB, and a UI that looks like the partner’s product while every create / stop / metrics / video import call goes to Soundlink.
+It simulates a white-label partner (distributor / label): fake artists on the partner side, a local mapping DB, and a UI that looks like the partner’s product while every create / stop / metrics / video import call goes to Soundlink.
 
 > **Warning:** Creates debit a **real org wallet** and can launch **real Meta ads**. Use a test API key, keep the spend guard on, and stop campaigns after demos.
 
@@ -13,7 +13,7 @@ It simulates a white-label partner (Groover): fake artists on the partner side, 
 | Concept                  | How                                                                                   |
 | ------------------------ | ------------------------------------------------------------------------------------- |
 | One Soundlink org        | Single `SOUNDLINK_API_KEY` for the test organization                                  |
-| Partner user mapping     | Seed Groover artists in SQLite/Turso; campaigns tagged with `partner_user_id`         |
+| Partner user mapping     | Seed partner artists in SQLite/Turso; campaigns tagged with `partner_user_id`         |
 | Campaign lifecycle       | `POST /v1/campaigns` → poll status → insights → `POST .../stop`                       |
 | Full control creatives   | Local catalog (`public/creatives`) + add-by-HTTPS-URL → import → `videoId`s on create |
 | Integration transparency | `api_call_log` + API Calls panel showing method, path, bodies, latency                |
@@ -25,7 +25,7 @@ It simulates a white-label partner (Groover): fake artists on the partner side, 
 
 ```
 ┌─────────────────────┐     cookie session      ┌──────────────────────┐
-│  Groover-style UI   │ ───────────────────────▶│  Next.js BFF (/api)  │
+│  Partner-style UI   │ ───────────────────────▶│  Next.js BFF (/api)  │
 │  (artists, create,  │                         │  spend guard + map   │
 │   admin, creatives) │ ◀───────────────────────│  SQLite / Turso      │
 └─────────────────────┘                         └──────────┬───────────┘
@@ -37,7 +37,7 @@ It simulates a white-label partner (Groover): fake artists on the partner side, 
                                                 └──────────────────────┘
 ```
 
-- **UI** — Groover branding; pick a fake artist; launch / list / detail / admin.
+- **UI** — Partner branding; pick a fake artist; launch / list / detail / admin.
 - **BFF** — Thin routes under `src/app/api/**`. Never expose the API key to the browser.
 - **Partner DB** — Ownership map + video import rows + API call log (not Soundlink’s DB).
 - **Soundlink** — Source of truth for campaigns, wallet, metrics, video library.
@@ -46,7 +46,7 @@ It simulates a white-label partner (Groover): fake artists on the partner side, 
 
 | Path              | Purpose                                                                |
 | ----------------- | ---------------------------------------------------------------------- |
-| `/`               | Pick a seed Groover artist (sets session cookie)                       |
+| `/`               | Pick a seed partner artist (sets session cookie)                       |
 | `/campaigns`      | Campaigns for the current artist                                       |
 | `/campaigns/new`  | Create flow (Track → Creative → Genre → Budget → Review)               |
 | `/campaigns/[id]` | Detail, Insights charts, API payload, stop, Soundlink dashboard link   |
@@ -74,7 +74,7 @@ Local LibSQL / Turso. Schema is created on first request (`ensureDb` in `src/lib
 
 ### `partner_users`
 
-Seeded fake Groover artists (see `SEED_USERS` in `src/lib/config.ts`).
+Seeded fake partner artists (see `SEED_USERS` in `src/lib/config.ts`).
 
 | Column       | Type     | Notes                                        |
 | ------------ | -------- | -------------------------------------------- |
@@ -148,7 +148,7 @@ api_call_log    (org-wide debug log)
 ### 1. Session (fake partner auth)
 
 1. Open `/` → pick Maya / Jules / Sofia.
-2. `POST /api/session` sets cookie `groover_partner_user`.
+2. `POST /api/session` sets cookie `partner_user`.
 3. Campaign list/detail are scoped to that artist. **Admin** sees all rows.
 
 There is no real auth — protect the Vercel deployment (see below).
@@ -355,25 +355,8 @@ public/
 
 ---
 
-## Public API gaps for partners
-
-This prototype only uses the Public API. Gaps that matter for a real white-label (wallet balance, auto-renew control, Spotify lookup/validation, webhooks, external reference, etc.) are tracked in **[PARTNER_GAPS.md](./PARTNER_GAPS.md)**.
-
-Highlights:
-
-| Gap | Why it hurts a partner |
-| --- | --- |
-| Wallet campaigns **auto-renew on by default**; no Public API toggle | Spend has no ceiling after the first cycle |
-| No **`GET /v1/wallet`** | Partner only learns about low balance via `402` on create |
-| No **Spotify lookup / pre-validation** | Partner cannot check track/playlist existence, metadata, or eligibility before `POST /v1/campaigns` (product UI can; API-only flow cannot) |
-| No webhooks | Status / renew failures / low balance require polling |
-| No `externalReference` on create | Partner must keep its own `campaign_map` (this app’s Turso tables) |
-
----
-
 ## References
 
-- [Partner API gaps (PARTNER_GAPS.md)](./PARTNER_GAPS.md) — full P0/P1/P2 list for Groover-style integrations
 - [Soundlink Public API docs](https://docs.getsoundlink.com)
 - [Importing videos](https://docs.getsoundlink.com/importing-videos) — HTTPS MP4/MOV only
 - [Creating campaigns](https://docs.getsoundlink.com/creating-campaigns) — `creativeDirection`, wallet funding
@@ -383,4 +366,4 @@ Highlights:
 
 ## License / status
 
-Internal prototype for Soundlink × Groover white-label exploration. Not a production partner SDK.
+Internal prototype for Soundlink white-label exploration. Not a production partner SDK.

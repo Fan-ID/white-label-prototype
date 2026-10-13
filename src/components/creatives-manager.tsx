@@ -148,7 +148,7 @@ export function CreativesManager() {
             </div>
             <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4">
               <p className="mb-2 text-xs font-medium text-muted-foreground uppercase">
-                How Groover would do this
+                How a partner would do this
               </p>
               <Textarea
                 readOnly

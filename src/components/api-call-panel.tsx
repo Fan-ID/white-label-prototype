@@ -52,7 +52,7 @@ export function ApiCallPanel() {
             Public API calls
           </CardTitle>
           <CardDescription>
-            Exact requests this prototype makes to Soundlink — what Groover would
+            Exact requests this prototype makes to Soundlink — what a partner would
             integrate.
           </CardDescription>
         </div>

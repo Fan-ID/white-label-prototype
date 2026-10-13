@@ -9,7 +9,7 @@ type Params = { params: Promise<{ campaignId: string }> }
 export async function POST(_request: Request, { params }: Params) {
   const user = await getSessionUser()
   if (!user) {
-    return NextResponse.json({ error: "Select a Groover artist first" }, { status: 401 })
+    return NextResponse.json({ error: "Select a partner artist first" }, { status: 401 })
   }
   const { campaignId } = await params
   const mapped = await getCampaignMap(campaignId)

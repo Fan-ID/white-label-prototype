@@ -11,7 +11,7 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json(
-      { error: "Select a Groover artist first" },
+      { error: "Select a partner artist first" },
       { status: 401 },
     );
   }

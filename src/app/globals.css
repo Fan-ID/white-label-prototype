@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Groover-inspired light theme */
+  /* Partner-inspired light theme */
   --background: hsl(30 40% 98%);
   --foreground: hsl(20 20% 12%);
   --card: hsl(0 0% 100%);

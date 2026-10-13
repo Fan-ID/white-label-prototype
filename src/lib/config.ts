@@ -21,7 +21,7 @@ export const PUBLIC_API_GENRES = [
   "Christmas",
 ] as const;
 
-export const SESSION_COOKIE = "groover_partner_user";
+export const SESSION_COOKIE = "partner_user";
 
 /** Partner “staff” persona — Admin nav and /admin only when this user is selected. */
 export const ADMIN_USER_ID = "user_admin";
@@ -50,7 +50,7 @@ export const SEED_USERS = [
   },
   {
     id: ADMIN_USER_ID,
-    name: "Groover Admin",
+    name: "Partner Admin",
     handle: "admin",
     genre: "Pop",
     avatarHue: 160,

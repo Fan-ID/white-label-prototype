@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Groover Ads · Soundlink prototype",
+  title: "Partner Ads · Soundlink prototype",
   description:
-    "White-label prototype: Groover UI creating paid campaigns via Soundlink Public API",
+    "White-label prototype: partner UI creating paid campaigns via Soundlink Public API",
 }
 
 export default function RootLayout({

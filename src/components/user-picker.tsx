@@ -45,10 +45,10 @@ export function UserPicker({ users }: { users: PartnerUser[] }) {
             White-label prototype
           </div>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Launch Meta ads from Groover
+            Launch Meta ads from the partner app
           </h1>
           <p className="text-muted-foreground text-base leading-relaxed">
-            Pick a fake Groover artist. Campaigns are created on Soundlink via
+            Pick a fake partner artist. Campaigns are created on Soundlink via
             the Public API under one partner org — mapped per artist on our side.
           </p>
         </div>
