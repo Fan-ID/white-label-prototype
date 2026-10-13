@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Clapperboard, Database, Megaphone, Plus } from "lucide-react"
@@ -53,15 +52,11 @@ export function AppShell({
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 pb-16 pt-6 sm:px-6">
       <header className="mb-8 grid grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border border-border/70 bg-card/80 px-3 py-2.5 shadow-sm backdrop-blur sm:grid-cols-[1fr_auto_1fr] sm:px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href={homeHref} className="shrink-0">
-            <Image
-              src="/images/logo.png"
-              alt="Partner"
-              width={140}
-              height={48}
-              className="h-8 w-auto sm:h-9"
-              priority
-            />
+          <Link
+            href={homeHref}
+            className="shrink-0 text-lg font-semibold tracking-tight text-foreground"
+          >
+            Partner
           </Link>
           <div className="hidden h-6 w-px bg-border md:block" />
           <p className="hidden text-xs text-muted-foreground md:block">

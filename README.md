@@ -340,7 +340,6 @@ src/
     config.ts
 public/
   creatives/       # demo MP4/MOV for full_control catalog
-  images/logo.png
 ```
 
 ---
